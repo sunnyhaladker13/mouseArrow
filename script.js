@@ -1,178 +1,235 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const container = document.getElementById('arrow-container');
-    const cursorGlow = document.getElementById('cursor-glow');
-    let arrows = [];
-    let lastPointerX = window.innerWidth / 2;
-    let lastPointerY = window.innerHeight / 2;
-    let targetX = lastPointerX;
-    let targetY = lastPointerY;
-    let animationFrameId = null;
-    let isTouchDevice = false;
+// High-performance arrow interaction that fills the entire viewport
+(function() {
+    // Configuration
+    const config = {
+        // Number of arrows (columns and rows)
+        columns: 20,
+        rows: 15,
+        // Arrow visual properties
+        arrowSize: 16,
+        arrowMargin: 6, // Space between arrows
+        // Performance settings
+        fps: 60,
+        animationThrottle: 5
+    };
     
-    function generateArrows() {
-        // Clear existing arrows and animation
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-        }
-        container.innerHTML = '';
-        arrows = [];
+    // Calculate total arrows based on rows and columns
+    const totalArrows = config.columns * config.rows;
+    
+    // Core DOM elements
+    let arrowContainer;
+    let cursorGlow;
+    
+    // Performance optimization variables
+    let lastFrame = 0;
+    const frameDelay = 1000 / config.fps;
+    let documentHidden = false;
+    let rafId = null;
+    
+    // Mouse/touch tracking
+    let pointerX = window.innerWidth / 2;
+    let pointerY = window.innerHeight / 2;
+    let isMoving = false;
+    let movingTimeout;
+    
+    // Arrow storage - pre-allocate for better performance
+    const arrows = [];
+    
+    // Initialize the grid of arrows
+    function createArrowGrid() {
+        // Calculate spacing for a grid that fills viewport
+        const spacingX = window.innerWidth / (config.columns + 1);
+        const spacingY = window.innerHeight / (config.rows + 1);
         
-        // Get container dimensions
-        const containerWidth = container.offsetWidth;
-        const containerHeight = container.offsetHeight;
-        
-        // Bigger arrow size while maintaining high density
-        const arrowSize = window.innerWidth <= 768 ? 8 : 12;
-        const spacing = arrowSize * 1.5; // Adjusted spacing for bigger arrows
-        
-        const columns = Math.floor(containerWidth / spacing);
-        const rows = Math.floor(containerHeight / spacing);
-        
-        // Adjusted maximum arrows for bigger size (balance between density and performance)
-        const maxArrows = window.innerWidth <= 768 ? 800 : 3000;
-        const totalPossibleArrows = rows * columns;
-        
-        // Calculate how many arrows to skip to achieve desired density
-        let skipFactor = Math.max(1, Math.floor(totalPossibleArrows / maxArrows));
-        
-        // Create fragment for better performance
+        // Use document fragment for batch DOM operations
         const fragment = document.createDocumentFragment();
-        let arrowCount = 0;
         
-        // Generate arrows in a grid pattern
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < columns; col++) {
-                // Use skip factor to limit total number
-                if ((row * columns + col) % skipFactor !== 0) continue;
+        // Create grid of arrows
+        for (let row = 0; row < config.rows; row++) {
+            for (let col = 0; col < config.columns; col++) {
+                // Calculate position for this arrow
+                const x = (col + 1) * spacingX;
+                const y = (row + 1) * spacingY;
                 
-                const x = col * spacing + spacing / 2;
-                const y = row * spacing + spacing / 2;
+                // Create arrow element
+                const arrowElement = document.createElement('div');
+                arrowElement.className = 'arrow';
                 
-                const arrow = document.createElement('div');
-                arrow.className = 'arrow';
-                arrow.style.left = `${x}px`;
-                arrow.style.top = `${y}px`;
-                arrow.dataset.x = x;
-                arrow.dataset.y = y;
+                // Store arrow data with its position
+                const arrow = {
+                    element: arrowElement,
+                    x: x,
+                    y: y,
+                    angle: 0
+                };
                 
-                fragment.appendChild(arrow);
+                // Set initial position
+                arrowElement.style.cssText = `
+                    left: ${x}px;
+                    top: ${y}px;
+                    width: ${config.arrowSize}px;
+                    height: ${config.arrowSize}px;
+                `;
+                
+                // Add to collection and to fragment
                 arrows.push(arrow);
-                arrowCount++;
+                fragment.appendChild(arrowElement);
             }
         }
         
-        // Append all arrows at once
-        container.appendChild(fragment);
-        console.log(`Created ${arrowCount} arrows`);
-        
-        // Initialize arrow positions to point toward center
-        updateArrows(containerWidth / 2, containerHeight / 2);
-        
-        // Start the smooth animation loop
-        startSmoothAnimationLoop();
+        // Append all arrows at once for better performance
+        arrowContainer.appendChild(fragment);
     }
     
-    function startSmoothAnimationLoop() {
-        const smoothFactor = 0.15; // Balance between smoothness and responsiveness
+    // Initialize as early as possible
+    function initialize() {
+        // Get DOM elements
+        arrowContainer = document.getElementById('arrow-container');
+        cursorGlow = document.getElementById('cursor-glow');
         
-        function updateLoop() {
-            // Smooth movement toward target
-            lastPointerX = lastPointerX + (targetX - lastPointerX) * smoothFactor;
-            lastPointerY = lastPointerY + (targetY - lastPointerY) * smoothFactor;
-            
-            // Update arrow rotations
-            updateArrows(lastPointerX, lastPointerY);
-            
-            // Continue animation
-            animationFrameId = requestAnimationFrame(updateLoop);
+        if (!arrowContainer || !cursorGlow) {
+            // DOM not ready yet, try again very soon
+            requestAnimationFrame(initialize);
+            return;
         }
         
-        // Start the loop
-        animationFrameId = requestAnimationFrame(updateLoop);
+        // Create the grid of arrows
+        createArrowGrid();
+        
+        // Setup event listeners with passive flag for better performance
+        document.addEventListener('mousemove', updatePointerPosition, { passive: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: true });
+        document.addEventListener('touchstart', handleTouchMove, { passive: true });
+        
+        // Handle window resize - recreate grid when window size changes
+        window.addEventListener('resize', handleResize, { passive: true });
+        
+        // Handle visibility changes to save performance when tab is not visible
+        document.addEventListener('visibilitychange', () => {
+            documentHidden = document.hidden;
+            if (!documentHidden && !rafId) {
+                rafId = requestAnimationFrame(animate);
+            }
+        });
+        
+        // Position cursor at initial position
+        updateCursorGlowPosition(pointerX, pointerY);
+        
+        // Start animation loop
+        rafId = requestAnimationFrame(animate);
     }
     
-    function updateArrows(x, y) {
-        // Update cursor glow position
-        if (!isTouchDevice) {
-            cursorGlow.style.left = `${x}px`;
-            cursorGlow.style.top = `${y}px`;
+    // Handle window resize
+    function handleResize() {
+        // Clear existing arrows
+        while (arrowContainer.firstChild) {
+            arrowContainer.removeChild(arrowContainer.firstChild);
         }
+        arrows.length = 0;
         
-        // Update all arrows - process in smaller batches
-        const batchSize = Math.min(200, Math.floor(arrows.length / 10));
-        
-        for (let i = 0; i < arrows.length; i += batchSize) {
-            const endIdx = Math.min(i + batchSize, arrows.length);
-            
-            // Use setTimeout for non-blocking updates
-            setTimeout(() => {
-                for (let j = i; j < endIdx; j++) {
-                    const arrow = arrows[j];
-                    const arrowX = parseFloat(arrow.dataset.x);
-                    const arrowY = parseFloat(arrow.dataset.y);
-                    
-                    // Calculate angle between arrow and pointer
-                    const dx = x - arrowX;
-                    const dy = y - arrowY;
-                    
-                    // Material Design arrow angle calculation (135° offset)
-                    const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 135;
-                    
-                    // Apply rotation
-                    arrow.style.transform = `rotate(${angle}deg)`;
-                }
-            }, 0);
-        }
+        // Create new grid
+        createArrowGrid();
     }
-    
-    // Handle mouse movement
-    container.addEventListener('mousemove', (event) => {
-        targetX = event.clientX;
-        targetY = event.clientY;
-        cursorGlow.style.opacity = '1';
-        isTouchDevice = false;
-    });
     
     // Handle touch events
-    container.addEventListener('touchstart', (event) => {
-        event.preventDefault();
-        if (event.touches.length > 0) {
-            isTouchDevice = true;
-            const touch = event.touches[0];
-            targetX = touch.clientX;
-            targetY = touch.clientY;
-            
-            cursorGlow.style.left = `${touch.clientX}px`;
-            cursorGlow.style.top = `${touch.clientY}px`;
-            cursorGlow.style.opacity = '1';
+    function handleTouchMove(e) {
+        if (e.touches && e.touches[0]) {
+            // Using passive event listeners so no preventDefault needed
+            updatePointerPosition({
+                clientX: e.touches[0].clientX,
+                clientY: e.touches[0].clientY
+            });
         }
-    });
-    
-    container.addEventListener('touchmove', (event) => {
-        event.preventDefault();
-        if (event.touches.length > 0) {
-            const touch = event.touches[0];
-            targetX = touch.clientX;
-            targetY = touch.clientY;
-            
-            cursorGlow.style.left = `${touch.clientX}px`;
-            cursorGlow.style.top = `${touch.clientY}px`;
-        }
-    });
-    
-    // Handle resize
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(generateArrows, 300);
-    });
-    
-    // Initial setup
-    generateArrows();
-    
-    // Hide glow initially on mobile
-    if ('ontouchstart' in window) {
-        isTouchDevice = true;
-        cursorGlow.style.opacity = '0';
     }
-});
+    
+    // Update cursor glow position (separate for performance)
+    function updateCursorGlowPosition(x, y) {
+        // Use hardware acceleration for smooth animation
+        cursorGlow.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    }
+    
+    // Track pointer (mouse/touch) position with throttling
+    const updatePointerPosition = (function() {
+        let lastExecution = 0;
+
+        return function(e) {
+            const now = performance.now();
+            if (now - lastExecution < config.animationThrottle) return;
+            lastExecution = now;
+            
+            pointerX = e.clientX;
+            pointerY = e.clientY;
+            
+            // Update cursor glow immediately for responsive feel
+            updateCursorGlowPosition(pointerX, pointerY);
+            
+            // Mark as moving for animation logic
+            clearTimeout(movingTimeout);
+            isMoving = true;
+            movingTimeout = setTimeout(() => {
+                isMoving = false;
+            }, 100);
+        };
+    })();
+    
+    // Calculate angle between two points in degrees
+    function calculateAngle(arrowX, arrowY, targetX, targetY) {
+        return Math.atan2(targetY - arrowY, targetX - arrowX) * (180 / Math.PI);
+    }
+    
+    // Animation loop with performance optimizations
+    function animate(timestamp) {
+        // Skip animation when document is not visible
+        if (documentHidden) {
+            rafId = null;
+            return;
+        }
+        
+        // Throttle to target framerate
+        if (timestamp - lastFrame < frameDelay) {
+            rafId = requestAnimationFrame(animate);
+            return;
+        }
+        lastFrame = timestamp;
+        
+        // Update all arrows to point to current pointer position
+        for (let i = 0; i < arrows.length; i++) {
+            const arrow = arrows[i];
+            
+            // Calculate angle from arrow to pointer
+            const angle = calculateAngle(arrow.x, arrow.y, pointerX, pointerY);
+            
+            // Only update DOM if angle has changed significantly (optimization)
+            if (Math.abs(angle - arrow.angle) > 0.5) {
+                arrow.angle = angle;
+                
+                // Use transform for better performance
+                arrow.element.style.transform = `translate3d(-50%, -50%, 0) rotate(${angle}deg)`;
+            }
+        }
+        
+        // Continue animation loop
+        rafId = requestAnimationFrame(animate);
+    }
+    
+    // Start initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+        initialize();
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', cleanup);
+    
+    function cleanup() {
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+        }
+        
+        document.removeEventListener('mousemove', updatePointerPosition);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchstart', handleTouchMove);
+        window.removeEventListener('resize', handleResize);
+    }
+})();

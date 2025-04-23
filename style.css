@@ -17,6 +17,12 @@ body {
     position: relative;
     height: 100vh;
     width: 100vw;
+    /* Contain enhances performance by isolating rendering context */
+    contain: strict;
+    /* Add GPU acceleration */
+    transform: translateZ(0);
+    /* Prevent any chromatic aberration on moving elements */
+    backface-visibility: hidden;
 }
 
 /* More subtle glow effect for cursor */
@@ -27,54 +33,176 @@ body {
     height: 60px;
     border-radius: 50%;
     background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0) 70%);
-    transform: translate(-50%, -50%);
     z-index: 9999;
     mix-blend-mode: screen;
     filter: blur(4px);
+    /* Add hardware acceleration */
+    will-change: transform;
+    transform: translate3d(-50%, -50%, 0);
+    /* Optimized for rendering */
+    contain: layout style paint;
 }
 
-/* Material Design arrow - bigger size */
+/* Material Design arrow - GPU accelerated */
 .arrow {
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
     border-top: 2px solid rgba(255, 255, 255, 0.8);
     border-right: 2px solid rgba(255, 255, 255, 0.8);
+    /* Center arrows on their position */
     transform-origin: center;
+    transform: translate3d(-50%, -50%, 0) rotate(0deg);
     pointer-events: none;
+    /* Pre-hint the browser to optimize rendering */
     will-change: transform;
+    /* Optimized for rendering */
+    contain: layout style;
+    /* Cache as bitmap for faster rendering when animating */
+    backface-visibility: hidden;
 }
 
-/* Subtle variations in white arrows - simplified */
-.arrow:nth-child(4n) {
+/* Visual variations for more interesting appearance */
+.arrow:nth-child(3n) {
     border-top-color: rgba(255, 255, 255, 1);
     border-right-color: rgba(255, 255, 255, 1);
+    width: 18px;
+    height: 18px;
 }
 
-.arrow:nth-child(4n+1) {
-    border-top-color: rgba(255, 255, 255, 0.8);
-    border-right-color: rgba(255, 255, 255, 0.8);
-}
-
-.arrow:nth-child(4n+2) {
-    border-top-color: rgba(255, 255, 255, 0.9);
-    border-right-color: rgba(255, 255, 255, 0.9);
-}
-
-.arrow:nth-child(4n+3) {
+.arrow:nth-child(3n+1) {
     border-top-color: rgba(255, 255, 255, 0.7);
     border-right-color: rgba(255, 255, 255, 0.7);
+    width: 14px;
+    height: 14px;
 }
 
+.arrow:nth-child(3n+2) {
+    border-top-color: rgba(255, 255, 255, 0.9);
+    border-right-color: rgba(255, 255, 255, 0.9);
+    width: 16px;
+    height: 16px;
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .arrow {
-        width: 8px;
-        height: 8px;
         border-width: 1.5px;
+    }
+    
+    .arrow:nth-child(3n) {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .arrow:nth-child(3n+1) {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .arrow:nth-child(3n+2) {
+        width: 12px;
+        height: 12px;
     }
     
     #cursor-glow {
         width: 40px;
         height: 40px;
+    }
+}
+
+/* Even smaller for mobile */
+@media (max-width: 480px) {
+    .arrow {
+        border-width: 1px;
+    }
+    
+    .arrow:nth-child(3n) {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .arrow:nth-child(3n+1) {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .arrow:nth-child(3n+2) {
+        width: 9px;
+        height: 9px;
+    }
+    
+    #cursor-glow {
+        width: 30px;
+        height: 30px;
+    }
+}
+
+/* Footer styles - optimized rendering */
+.footer {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    z-index: 1000;
+    pointer-events: auto;
+    /* Improve layer compositing */
+    transform: translateZ(0);
+    /* Optimize rendering */
+    contain: content;
+}
+
+.footer a {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 5px 15px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* Improve rendering on hover transition */
+    will-change: transform, background-color;
+    /* Prevent text shifting on hover */
+    transform: translateZ(0);
+}
+
+.footer a:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.heart {
+    display: inline-block;
+    color: #ff4d4d;
+    animation: heartbeat 1.2s infinite;
+    /* Optimize animation */
+    will-change: transform;
+    /* Hardware acceleration */
+    transform: translateZ(0);
+}
+
+/* Using more efficient animation properties */
+@keyframes heartbeat {
+    0%, 100% { transform: scale3d(1, 1, 1); }
+    50% { transform: scale3d(1.1, 1.1, 1); }
+}
+
+@media (max-width: 768px) {
+    .footer {
+        bottom: 10px;
+        font-size: 12px;
+    }
+    
+    .footer a {
+        padding: 4px 12px;
     }
 }

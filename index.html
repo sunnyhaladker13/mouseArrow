@@ -4,11 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Arrow Interaction</title>
-    <link rel="stylesheet" href="style.css">
+    
+    <!-- Performance optimization with preloading -->
+    <link rel="preload" href="style.css" as="style">
+    <link rel="preload" href="script.js" as="script">
+    
+    <!-- Critical inline styles for instant rendering -->
+    <style>
+        body {
+            background-color: #121212;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            cursor: none;
+        }
+        
+        #arrow-container {
+            position: relative;
+            height: 100vh;
+            width: 100vw;
+            contain: strict;
+        }
+        
+        #cursor-glow {
+            position: fixed;
+            pointer-events: none;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0) 70%);
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            mix-blend-mode: screen;
+            filter: blur(4px);
+            will-change: transform;
+            transform: translate3d(-50%, -50%, 0);
+        }
+    </style>
+    
+    <!-- Non-critical CSS loaded asynchronously -->
+    <link rel="stylesheet" href="style.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="style.css"></noscript>
+    
+    <!-- Preconnect to LinkedIn for faster loading of profile -->
+    <link rel="preconnect" href="https://www.linkedin.com">
+    <link rel="dns-prefetch" href="https://www.linkedin.com">
+    
+    <!-- JavaScript with modern loading attributes -->
+    <script src="script.js" defer></script>
 </head>
 <body>
+    <!-- Initial load placeholder with minimal structure -->
     <div id="arrow-container"></div>
     <div id="cursor-glow"></div>
-    <script src="script.js"></script>
+    
+    <div class="footer">
+        Made with <span class="heart">♥</span> by Sunny 
+        <a href="https://www.linkedin.com/in/sunnyhaladker/" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
 </body>
 </html>

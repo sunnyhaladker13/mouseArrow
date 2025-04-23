@@ -1,0 +1,80 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    background-color: #121212;
+    height: 100vh;
+    width: 100vw;
+    touch-action: none;
+    cursor: none; /* Hide default cursor */
+}
+
+#arrow-container {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* More subtle glow effect for cursor */
+#cursor-glow {
+    position: fixed;
+    pointer-events: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0) 70%);
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    mix-blend-mode: screen;
+    filter: blur(4px);
+}
+
+/* Material Design arrow - bigger size */
+.arrow {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-top: 2px solid rgba(255, 255, 255, 0.8);
+    border-right: 2px solid rgba(255, 255, 255, 0.8);
+    transform-origin: center;
+    pointer-events: none;
+    will-change: transform;
+}
+
+/* Subtle variations in white arrows - simplified */
+.arrow:nth-child(4n) {
+    border-top-color: rgba(255, 255, 255, 1);
+    border-right-color: rgba(255, 255, 255, 1);
+}
+
+.arrow:nth-child(4n+1) {
+    border-top-color: rgba(255, 255, 255, 0.8);
+    border-right-color: rgba(255, 255, 255, 0.8);
+}
+
+.arrow:nth-child(4n+2) {
+    border-top-color: rgba(255, 255, 255, 0.9);
+    border-right-color: rgba(255, 255, 255, 0.9);
+}
+
+.arrow:nth-child(4n+3) {
+    border-top-color: rgba(255, 255, 255, 0.7);
+    border-right-color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 768px) {
+    .arrow {
+        width: 8px;
+        height: 8px;
+        border-width: 1.5px;
+    }
+    
+    #cursor-glow {
+        width: 40px;
+        height: 40px;
+    }
+}
